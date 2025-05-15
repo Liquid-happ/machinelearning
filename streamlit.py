@@ -17,7 +17,6 @@ with open('label_encoder.pkl', 'rb') as f:
 # Đường dẫn đến file CSV
 CSV_FILE = os.path.join(os.getcwd(), 'aqicn_aqi_data.csv')
 
-
 # Hàm cào dữ liệu thời gian thực AQI từ aqicn.org
 def fetch_latest_data():
     url = 'https://aqicn.org/city/vietnam/hanoi/'
@@ -41,7 +40,6 @@ def fetch_latest_data():
         st.error(f"Lỗi khi lấy dữ liệu từ AQICN.org: {e}")
         return None
 
-
 # Hàm lấy dữ liệu gần nhất từ file CSV
 def fetch_latest_from_csv():
     if not os.path.exists(CSV_FILE):
@@ -60,7 +58,6 @@ def fetch_latest_from_csv():
         st.error(f"Lỗi khi đọc dữ liệu từ CSV: {e}")
         return None
 
-
 # Hàm lấy dữ liệu 24 giờ qua để vẽ biểu đồ
 def fetch_last_24h_data():
     if not os.path.exists(CSV_FILE):
@@ -74,7 +71,6 @@ def fetch_last_24h_data():
     except Exception as e:
         st.error(f"Lỗi khi đọc dữ liệu 24 giờ từ CSV: {e}")
         return None
-
 
 # Hàm phân loại AQI và trả về màu sắc
 def classify_aqi(aqi_value):
@@ -104,7 +100,6 @@ def classify_aqi(aqi_value):
         color = "#000000"  # Đen
     return category, advice, color
 
-
 # Hàm dự đoán AQI
 def predict_aqi(hour, day, month, city):
     input_data = pd.DataFrame({
@@ -122,16 +117,16 @@ def predict_aqi(hour, day, month, city):
     category, advice, color = classify_aqi(prediction)
     return prediction, category, advice, color
 
-
 # Tiêu đề ứng dụng
-st.markdown("<h1 style='text-align: center; color: #1E90FF;'>Dự đoán Chỉ số Chất lượng Không khí (AQI)</h1>",
-            unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E90FF;'>Dự đoán Chỉ số Chất lượng Không khí (AQI)</h1>", unsafe_allow_html=True)
 
-# Lấy thời gian hiện tại
-current_time = datetime(2025, 5, 15, 21, 55)  # 09:55 PM +07
+# Lấy thời gian hiện tại động
+current_time = datetime.now()
+weekday = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"][current_time.weekday()]
 st.markdown(
-    f"<h4 style='text-align: center; color: #555555;'>Thời gian hiện tại: {current_time.strftime('%Y-%m-%d %H:%M:%S')} (Thứ Năm, 15/05/2025)</h4>",
-    unsafe_allow_html=True)
+    f"<h4 style='text-align: center; color: #555555;'>Thời gian hiện tại: {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({weekday}, {current_time.strftime('%d/%m/%Y')})</h4>",
+    unsafe_allow_html=True
+)
 
 # Phần hiển thị dữ liệu AQI
 st.subheader("Dữ liệu AQI Hiện tại")
@@ -145,8 +140,7 @@ with col1:
         category_csv, advice_csv, color_csv = classify_aqi(latest_csv_data['aqi'])
         st.markdown(f"**Dữ liệu Gần nhất (CSV - Cập nhật mỗi phút)**")
         st.markdown(f"**Thời gian:** {latest_csv_data['timestamp']}")
-        st.markdown(f"**AQI:** <span style='color: {color_csv}; font-weight: bold;'>{latest_csv_data['aqi']}</span>",
-                    unsafe_allow_html=True)
+        st.markdown(f"**AQI:** <span style='color: {color_csv}; font-weight: bold;'>{latest_csv_data['aqi']}</span>", unsafe_allow_html=True)
         st.markdown(f"**Phân loại:** {category_csv}")
 
 # Dữ liệu thời gian thực
@@ -156,8 +150,7 @@ with col2:
         category_rt, advice_rt, color_rt = classify_aqi(latest_data['aqi'])
         st.markdown(f"**Dữ liệu Thời gian thực (AQICN.org)**")
         st.markdown(f"**Thời gian:** {latest_data['timestamp']}")
-        st.markdown(f"**AQI:** <span style='color: {color_rt}; font-weight: bold;'>{latest_data['aqi']}</span>",
-                    unsafe_allow_html=True)
+        st.markdown(f"**AQI:** <span style='color: {color_rt}; font-weight: bold;'>{latest_data['aqi']}</span>", unsafe_allow_html=True)
         st.markdown(f"**Phân loại:** {category_rt}")
 
 # Biểu đồ xu hướng AQI
@@ -220,8 +213,7 @@ if submit_button:
     tomorrow_hour = hour
     tomorrow_day = tomorrow.day
     tomorrow_month = tomorrow.month
-    prediction_tomorrow, category_tomorrow, advice_tomorrow, color_tomorrow = predict_aqi(tomorrow_hour, tomorrow_day,
-                                                                                          tomorrow_month, city)
+    prediction_tomorrow, category_tomorrow, advice_tomorrow, color_tomorrow = predict_aqi(tomorrow_hour, tomorrow_day, tomorrow_month, city)
     st.markdown(f"**Dự đoán ngày mai cùng giờ ({tomorrow.strftime('%Y-%m-%d')} {tomorrow_hour}:00):**")
     st.markdown(f"<div style='background-color: {color_tomorrow}; color: white; padding: 10px; border-radius: 5px;'>"
                 f"AQI: {prediction_tomorrow:.2f}<br>"
