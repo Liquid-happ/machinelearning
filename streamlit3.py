@@ -143,4 +143,4 @@ if st.button("Huấn luyện lại mô hình"):
 
 # Tự động làm mới để cập nhật thời gian
 time.sleep(1)
-st.experimental_rerun()
+st.rerun()
