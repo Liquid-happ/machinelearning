@@ -124,7 +124,7 @@ current_time = get_vietnam_time().strftime("%Y-%m-%d %H:%M:%S")
 st.markdown(f"<p class='text-lg text-gray-600'>Thời gian hiện tại: {current_time}</p>", unsafe_allow_html=True)
 
 # Phần dự đoán
-st.markdown("<h2 class='text-2xl font-semibold text-gray-800 mt-6'>Dự đoán AQI, Tốc độ gió, và Độ ẩm</h2>", unsafe_allow_html=True)
+st.markdown("<h2 class='text-2xl font-semibold text-gray-800 mt-6'>Dự đoán AQI, Tốc độ gió và Độ ẩm</h2>", unsafe_allow_html=True)
 col1, col2 = st.columns([1, 2])
 
 with col1:
