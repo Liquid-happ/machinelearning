@@ -1,0 +1,20 @@
+{
+    "name": "Dự đoán AQI Việt Nam",
+    "short_name": "AQI Việt Nam",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#1f77b4",
+    "icons": [
+        {
+            "src": "/static/icon-192x192.jpg",
+            "sizes": "192x192",
+            "type": "image/jpeg"
+        },
+        {
+            "src": "/static/icon-512x512.jpg",
+            "sizes": "512x512",
+            "type": "image/jpeg"
+        }
+    ]
+}
