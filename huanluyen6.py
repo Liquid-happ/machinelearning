@@ -53,7 +53,7 @@ def train_model():
 
     # Read data with UTF-8 encoding
     df = pd.read_csv(CSV_FILE, encoding='utf-8')
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601', errors='coerce')
 
     # Handle missing data
     df[['aqi', 'wind_speed', 'humidity']] = df[['aqi', 'wind_speed', 'humidity']].interpolate(method='linear')

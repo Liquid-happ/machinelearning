@@ -44,7 +44,12 @@ if model is None or scaler is None or features is None:
 # Load historical data
 try:
     df = pd.read_csv(CSV_FILE, encoding='utf-8')
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    # Convert timestamp with flexible parsing
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601', errors='coerce')
+    # Check for invalid timestamps
+    if df['timestamp'].isna().any():
+        st.warning(f"Found {df['timestamp'].isna().sum()} invalid timestamps. These records will be removed.")
+        df = df.dropna(subset=['timestamp'])
     # Preprocess wind_speed and humidity to ensure numeric types
     df['wind_speed'] = df['wind_speed'].str.replace(' km/h', '', regex=False).astype(float)
     df['humidity'] = df['humidity'].str.replace('%', '', regex=False).astype(float)
@@ -199,7 +204,7 @@ with st.sidebar:
                 xaxis_tickangle=45,
                 plot_bgcolor='white',
                 paper_bgcolor='white',
-                font=dict(color='black'),  # Set all text to black
+                font=dict(color='black'),
                 title_font=dict(color='black'),
                 xaxis_title_font=dict(color='black'),
                 yaxis_title_font=dict(color='black'),
@@ -268,7 +273,7 @@ with col2:
                 xaxis_tickangle=45,
                 plot_bgcolor='white',
                 paper_bgcolor='white',
-                font=dict(color='black'),  # Set all text to black
+                font=dict(color='black'),
                 title_font=dict(color='black'),
                 xaxis_title_font=dict(color='black'),
                 yaxis_title_font=dict(color='black'),
@@ -280,7 +285,6 @@ with col2:
             # Warning for dangerous AQI
             if any(pred_df['AQI'] > 300):
                 st.markdown("<p class='text-red-600 font-bold'>CẢNH BÁO: AQI dự đoán vượt ngưỡng nguy hiểm (>300)!</p>", unsafe_allow_html=True)
-
 
 # Retrain model button
 if st.button("Huấn luyện lại mô hình"):
