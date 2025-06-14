@@ -158,6 +158,8 @@ if 'selected_city' not in st.session_state:
     st.session_state.selected_city = 'Hà Nội'
 if 'selected_city_pred' not in st.session_state:
     st.session_state.selected_city_pred = 'Hà Nội'
+if 'selected_date' not in st.session_state:
+    st.session_state.selected_date = datetime.now(ZoneInfo("Asia/Bangkok")).date()
 if 'future_date' not in st.session_state:
     st.session_state.future_date = datetime.today().date()
 if 'future_time' not in st.session_state:
@@ -193,35 +195,51 @@ with st.sidebar:
     selected_city = st.selectbox("Chọn thành phố để xem lịch sử:", cities, index=cities.index(st.session_state.selected_city))
     st.session_state.selected_city = selected_city
 
+    # Thêm chọn ngày
+    selected_date = st.date_input("Chọn ngày để xem dữ liệu:", min_value=df['timestamp'].min().date(),
+                                 max_value=df['timestamp'].max().date(),
+                                 value=st.session_state.selected_date)
+    st.session_state.selected_date = selected_date
+
     city_data = df[df['city'] == selected_city].sort_values('timestamp')
     if not city_data.empty:
-        st.markdown(f"<h3 class='text-xl font-semibold text-white-700'>Lịch sử tại {selected_city}</h3>", unsafe_allow_html=True)
-        latest_aqi = city_data['aqi'].iloc[-1]
+        # Lấy dữ liệu hiện tại (bản ghi mới nhất)
+        latest_data = city_data.iloc[-1]
+        latest_aqi = latest_data['aqi']
+        latest_timestamp = latest_data['timestamp']
         aqi_category, bg_color, health_impact = get_aqi_category(latest_aqi)
         st.markdown(f"""
             <div class='aqi-gauge {bg_color}'>
                 AQI hiện tại: {latest_aqi:.1f} ({aqi_category})
             </div>
-            <p class='text-white-600 mt-2'>{health_impact}</p>
+            <p class='text-white-600 mt-2'>Thời gian: {latest_timestamp.strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p class='text-white-600'>{health_impact}</p>
         """, unsafe_allow_html=True)
-        try:
-            fig = px.line(city_data, x='timestamp', y=['aqi'],
-                          title=f"Lịch sử AQI {selected_city}",
-                          labels={'timestamp': 'Thời gian', 'value': 'Giá trị', 'variable': 'Biến'})
-            fig.update_layout(
-                xaxis_tickangle=45,
-                plot_bgcolor='white',
-                paper_bgcolor='white',
-                font=dict(color='black'),
-                title_font=dict(color='black'),
-                xaxis_title_font=dict(color='black'),
-                yaxis_title_font=dict(color='black'),
-                xaxis_tickfont=dict(color='black'),
-                yaxis_tickfont=dict(color='black')
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        except Exception as e:
-            st.error(f"Lỗi vẽ biểu đồ: {str(e)}")
+
+        # Biểu đồ lịch sử theo ngày được chọn
+        daily_data = city_data[city_data['timestamp'].dt.date == selected_date]
+        if not daily_data.empty:
+            st.markdown(f"<h3 class='text-xl font-semibold text-white-700 mt-4'>Lịch sử AQI tại {selected_city} - Ngày {selected_date}</h3>", unsafe_allow_html=True)
+            try:
+                fig = px.line(daily_data, x='timestamp', y=['aqi'],
+                              title=f"Lịch sử AQI {selected_city} - Ngày {selected_date}",
+                              labels={'timestamp': 'Thời gian', 'value': 'Giá trị', 'variable': 'Biến'})
+                fig.update_layout(
+                    xaxis_tickangle=45,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    font=dict(color='black'),
+                    title_font=dict(color='black'),
+                    xaxis_title_font=dict(color='black'),
+                    yaxis_title_font=dict(color='black'),
+                    xaxis_tickfont=dict(color='black'),
+                    yaxis_tickfont=dict(color='black')
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.error(f"Lỗi vẽ biểu đồ lịch sử: {str(e)}")
+        else:
+            st.markdown(f"<p class='text-white-600'>Không có dữ liệu cho {selected_city} vào ngày {selected_date}.</p>", unsafe_allow_html=True)
 
         # Biểu đồ AQI 24 giờ gần nhất
         last_24h_data = city_data[city_data['timestamp'] >= (city_data['timestamp'].max() - timedelta(hours=24))]
