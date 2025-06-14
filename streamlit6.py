@@ -222,6 +222,31 @@ with st.sidebar:
             st.plotly_chart(fig, use_container_width=True)
         except Exception as e:
             st.error(f"Lỗi vẽ biểu đồ: {str(e)}")
+
+        # Biểu đồ AQI 24 giờ gần nhất
+        last_24h_data = city_data[city_data['timestamp'] >= (city_data['timestamp'].max() - timedelta(hours=24))]
+        if not last_24h_data.empty:
+            st.markdown(f"<h3 class='text-xl font-semibold text-white-700 mt-4'>AQI 24 giờ gần nhất tại {selected_city}</h3>", unsafe_allow_html=True)
+            try:
+                fig_24h = px.line(last_24h_data, x='timestamp', y=['aqi'],
+                                title=f"AQI 24 giờ gần nhất {selected_city}",
+                                labels={'timestamp': 'Thời gian', 'value': 'Giá trị', 'variable': 'Biến'})
+                fig_24h.update_layout(
+                    xaxis_tickangle=45,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    font=dict(color='black'),
+                    title_font=dict(color='black'),
+                    xaxis_title_font=dict(color='black'),
+                    yaxis_title_font=dict(color='black'),
+                    xaxis_tickfont=dict(color='black'),
+                    yaxis_tickfont=dict(color='black')
+                )
+                st.plotly_chart(fig_24h, use_container_width=True)
+            except Exception as e:
+                st.error(f"Lỗi vẽ biểu đồ 24h: {str(e)}")
+        else:
+            st.markdown("<p class='text-white-600'>Chưa có đủ dữ liệu 24 giờ cho thành phố này.</p>", unsafe_allow_html=True)
     else:
         st.markdown("<p class='text-white-600'>Chưa có dữ liệu lịch sử cho thành phố này.</p>", unsafe_allow_html=True)
 
