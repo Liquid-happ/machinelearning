@@ -2,7 +2,7 @@ name: Auto Update CSV
 
 on:
   schedule:
-    - cron: '0 * * * *' # Chạy mỗi giờ (0 phút mỗi giờ)
+    - cron: '0 */1 * * *' # Chạy mỗi giờ (0 phút mỗi giờ)
   workflow_dispatch: # Cho phép chạy thủ công
 
 jobs:
