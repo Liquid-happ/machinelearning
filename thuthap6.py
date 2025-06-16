@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
 import re
 import logging
+from backports.zoneinfo import ZoneInfo  
 
 # Cấu hình logging
 logging.basicConfig(
