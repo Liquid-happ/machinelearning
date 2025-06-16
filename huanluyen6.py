@@ -20,16 +20,14 @@ logging.basicConfig(
 )
 
 CSV_FILE = os.path.join(os.getcwd(), 'all_cities_aqi_data.csv')
-MODEL_FILE = os.path.join(os.getcwd(), 'models', 'aqi_multioutput_lstm_model.h5')
+MODEL_FILE = os.path.join(os.getcwd(), 'models', 'aqi_lstm_model.h5')
 FEATURES_FILE = os.path.join(os.getcwd(), 'models', 'features_lstm.txt')
 SCALER_FILE = os.path.join(os.getcwd(), 'models', 'scaler_lstm.pkl')
 RETRAIN_FLAG = os.path.join(os.getcwd(), 'retrain_flag.txt')
 
-
 def log_and_print(message):
     logging.info(message)
     print(message)
-
 
 def should_retrain():
     os.makedirs('models', exist_ok=True)
@@ -40,10 +38,9 @@ def should_retrain():
             os.remove(RETRAIN_FLAG)
             return True
         except OSError as e:
-            log_and_print(f"lỖI: {e}")
+            log_and_print(f"LỖI: {e}")
             return True
     return os.path.getmtime(CSV_FILE) > os.path.getmtime(MODEL_FILE)
-
 
 def create_sequences(X, y, time_steps=24):
     Xs, ys = [], []
@@ -52,48 +49,41 @@ def create_sequences(X, y, time_steps=24):
         ys.append(y[i + time_steps])
     return np.array(Xs), np.array(ys)
 
-
 class AQILossLogger(Callback):
     def on_epoch_end(self, epoch, logs=None):
         if hasattr(self.model, 'validation_data') and self.model.validation_data is not None:
             X_val, y_val = self.model.validation_data[0], self.model.validation_data[1]
             y_pred_val = self.model.predict(X_val, verbose=0)
-            aqi_pred = y_pred_val[:, 0]
-            aqi_true = y_val[:, 0]
-            mse_aqi = mean_squared_error(aqi_true, aqi_pred)
+            mse_aqi = mean_squared_error(y_val, y_pred_val)
             log_and_print(f"Epoch {epoch + 1} - AQI Validation MSE: {mse_aqi:.4f}")
 
-
 def train_model():
-    log_and_print("Bắt đầu mô hình huấn luyện LSTM....")
+    log_and_print("Bắt đầu huấn luyện mô hình LSTM...")
 
     os.makedirs('models', exist_ok=True)
 
     try:
         df = pd.read_csv(CSV_FILE, encoding='utf-8-sig')
     except FileNotFoundError:
-        log_and_print(f"CSV file not found: {CSV_FILE}")
+        log_and_print(f"Không tìm thấy file CSV: {CSV_FILE}")
         raise
     except Exception as e:
-        log_and_print(f"Error reading CSV: {e}")
+        log_and_print(f"Lỗi đọc CSV: {e}")
         raise
 
     df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S.%f%z', errors='coerce')
     if df['timestamp'].isna().any():
-        log_and_print(f"Found {df['timestamp'].isna().sum()} invalid timestamps")
+        log_and_print(f"Tìm thấy {df['timestamp'].isna().sum()} timestamp không hợp lệ")
         df = df.dropna(subset=['timestamp'])
 
     df['aqi'] = pd.to_numeric(df['aqi'], errors='coerce')
-    df['wind_speed'] = df['wind_speed'].str.replace(' km/h', '', regex=False).astype(float, errors='ignore')
-    df['humidity'] = df['humidity'].str.replace('%', '', regex=False).astype(float, errors='ignore')
-
     df = df.set_index('timestamp')
-    df[['aqi', 'wind_speed', 'humidity']] = df[['aqi', 'wind_speed', 'humidity']].infer_objects(copy=False).interpolate(method='time')
+    df['aqi'] = df['aqi'].interpolate(method='time')
     df = df.reset_index()
 
-    if df[['aqi', 'wind_speed', 'humidity']].isna().any().any():
-        log_and_print("Warning: Missing values remain after interpolation")
-        df[['aqi', 'wind_speed', 'humidity']] = df[['aqi', 'wind_speed', 'humidity']].fillna(df[['aqi', 'wind_speed', 'humidity']].mean())
+    if df['aqi'].isna().any():
+        log_and_print("Cảnh báo: Vẫn còn giá trị thiếu sau khi nội suy")
+        df['aqi'] = df['aqi'].fillna(df['aqi'].mean())
 
     df = df.assign(
         year=df['timestamp'].dt.year,
@@ -106,9 +96,8 @@ def train_model():
         cos_hour=np.cos(2 * np.pi * df['timestamp'].dt.hour / 24)
     )
 
-    for col in ['aqi', 'wind_speed', 'humidity']:
-        df[f'{col}_mean_3h'] = df.groupby('city')[col].shift(1).rolling(window=3, min_periods=1).mean()
-    df[['aqi_mean_3h', 'wind_speed_mean_3h', 'humidity_mean_3h']] = df[['aqi_mean_3h', 'wind_speed_mean_3h', 'humidity_mean_3h']].fillna(df[['aqi_mean_3h', 'wind_speed_mean_3h', 'humidity_mean_3h']].mean())
+    df['aqi_mean_3h'] = df.groupby('city')['aqi'].shift(1).rolling(window=3, min_periods=1).mean()
+    df['aqi_mean_3h'] = df['aqi_mean_3h'].fillna(df['aqi_mean_3h'].mean())
 
     df = pd.get_dummies(df, columns=['city'], drop_first=True)
     valid_cities = []
@@ -120,17 +109,17 @@ def train_model():
         else:
             valid_cities.append(city_name)
     if not valid_cities:
-        log_and_print("không đủ chuỗi dữ liệu (>= 24 records)")
-        raise ValueError("không đủ chuỗi dữ liêu (>= 24 records)")
+        log_and_print("Không đủ chuỗi dữ liệu (>= 24 records)")
+        raise ValueError("Không đủ chuỗi dữ liệu (>= 24 records)")
 
-    features = [col for col in df.columns if col in ['year', 'month', 'day', 'hour', 'day_of_week', 'is_weekend', 'sin_hour', 'cos_hour', 'aqi_mean_3h', 'wind_speed_mean_3h', 'humidity_mean_3h'] or col.startswith('city_')]
+    features = [col for col in df.columns if col in ['year', 'month', 'day', 'hour', 'day_of_week', 'is_weekend', 'sin_hour', 'cos_hour', 'aqi_mean_3h'] or col.startswith('city_')]
     X = df[features].dropna()
-    y = df.loc[X.index, ['aqi', 'wind_speed', 'humidity']].values
+    y = df.loc[X.index, 'aqi'].values
 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     joblib.dump(scaler, SCALER_FILE)
-    log_and_print(f"lưu vào {SCALER_FILE}")
+    log_and_print(f"Lưu scaler vào {SCALER_FILE}")
 
     time_steps = 24
     X_seq, y_seq = create_sequences(X_scaled, y, time_steps)
@@ -143,10 +132,10 @@ def train_model():
         Bidirectional(LSTM(32)),
         Dropout(0.2),
         Dense(16, activation='relu'),
-        Dense(3)
+        Dense(1)  # Chỉ dự đoán AQI
     ])
     model.compile(optimizer=Adam(learning_rate=0.001), loss=MeanSquaredError())
-    log_and_print("Khởi tạo mô hình huấn luyên ")
+    log_and_print("Khởi tạo mô hình huấn luyện")
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
     checkpoint = ModelCheckpoint(MODEL_FILE, save_best_only=True, monitor='val_loss')
@@ -162,10 +151,9 @@ def train_model():
     )
 
     y_pred = model.predict(X_test, verbose=0)
-    for i, target in enumerate(['AQI', 'Wind Speed', 'Humidity']):
-        mse = mean_squared_error(y_test[:, i], y_pred[:, i])
-        r2 = r2_score(y_test[:, i], y_pred[:, i])
-        log_and_print(f"{target} - Mean Squared Error: {mse:.2f}, R² Score: {r2:.2f}")
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    log_and_print(f"AQI - Mean Squared Error: {mse:.2f}, R² Score: {r2:.2f}")
 
     model.save(MODEL_FILE)
     log_and_print(f"Lưu mô hình vào {MODEL_FILE}")
@@ -173,9 +161,8 @@ def train_model():
         f.write(','.join(features))
     log_and_print(f"Lưu các đặc trưng vào {FEATURES_FILE}")
 
-
 if __name__ == "__main__":
     if should_retrain():
         train_model()
     else:
-        log_and_print("Mô hình đã được cập nhật..")
+        log_and_print("Mô hình đã được cập nhật.")
