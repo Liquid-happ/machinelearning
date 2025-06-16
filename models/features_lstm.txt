@@ -1,0 +1,1 @@
+year,month,day,hour,day_of_week,is_weekend,sin_hour,cos_hour,aqi_mean_3h,city_Hà Nội,city_Hồ Chí Minh,city_Vinh,city_Đà Nẵng
