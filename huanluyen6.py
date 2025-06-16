@@ -7,7 +7,7 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import MeanSquaredError
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score,mean_absolute_error
 import os
 import joblib
 import logging
@@ -153,7 +153,8 @@ def train_model():
     y_pred = model.predict(X_test, verbose=0)
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
-    log_and_print(f"AQI - Mean Squared Error: {mse:.2f}, R² Score: {r2:.2f}")
+    mae = mean_absolute_error(y_test, y_pred)
+    log_and_print(f"AQI - Mean Squared Error: {mse:.2f}, R² Score: {r2:.2f},MAE: {mae:.2f}")
 
     model.save(MODEL_FILE)
     log_and_print(f"Lưu mô hình vào {MODEL_FILE}")
