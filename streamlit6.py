@@ -11,11 +11,10 @@ import os
 st.set_page_config(page_title="Dự đoán AQI Việt Nam", layout="wide")
 
 CSV_FILE = os.path.join(os.getcwd(), 'all_cities_aqi_data.csv')
-MODEL_FILE = os.path.join(os.getcwd(), 'models', 'aqi_multioutput_lstm_model.h5')
+MODEL_FILE = os.path.join(os.getcwd(), 'models', 'aqi_lstm_model.h5')
 FEATURES_FILE = os.path.join(os.getcwd(), 'models', 'features_lstm.txt')
 SCALER_FILE = os.path.join(os.getcwd(), 'models', 'scaler_lstm.pkl')
 RETRAIN_FLAG = os.path.join(os.getcwd(), 'retrain_flag.txt')
-
 
 @st.cache_resource
 def load_model_and_features():
@@ -25,19 +24,18 @@ def load_model_and_features():
         with open(FEATURES_FILE, 'r', encoding='utf-8') as f:
             features = f.read().strip().split(',')
         return model, scaler, features
-    except FileNotFoundError:
+    except FileNotFoundError as e:
+        st.error(f"File không tồn tại: {str(e)}")
         return None, None, None
     except Exception as e:
-        st.error(f"Lỗi tải mô hình: {str(e)}")
+        st.error(f"Lỗi tải mô hình hoặc scaler: {str(e)}")
         return None, None, None
-
 
 model, scaler, features = load_model_and_features()
 if model is None or scaler is None or features is None:
     st.error(
-        "Không tìm thấy mô hình, scaler hoặc file đặc trưng. Vui lòng huấn luyện mô hình trước bằng `huanluyen6.py`.")
+        "Không tìm thấy mô hình, scaler hoặc file đặc trưng. Vui lòng huấn luyện mô hình trước bằng `huanluyen6_aqi_only.py`.")
     st.stop()
-
 
 @st.cache_data
 def load_and_preprocess_data():
@@ -47,19 +45,16 @@ def load_and_preprocess_data():
         if df['timestamp'].isna().any():
             st.warning(f"Tìm thấy {df['timestamp'].isna().sum()} timestamp không hợp lệ. Các bản ghi này sẽ bị xóa.")
             df = df.dropna(subset=['timestamp'])
-        df['wind_speed'] = df['wind_speed'].str.replace(' km/h', '', regex=False).astype(float, errors='ignore')
-        df['humidity'] = df['humidity'].str.replace('%', '', regex=False).astype(float, errors='ignore')
         df['aqi'] = pd.to_numeric(df['aqi'], errors='coerce')
-        if df[['aqi', 'wind_speed', 'humidity']].isna().any().any():
-            st.warning("Tìm thấy giá trị thiếu trong dữ liệu. Điền bằng trung bình.")
-            df[['aqi', 'wind_speed', 'humidity']] = df[['aqi', 'wind_speed', 'humidity']].fillna(
-                df[['aqi', 'wind_speed', 'humidity']].mean())
+        if df['aqi'].isna().any():
+            st.warning("Tìm thấy giá trị thiếu trong AQI. Điền bằng trung bình.")
+            df['aqi'] = df['aqi'].fillna(df['aqi'].mean())
 
         city_counts = df['city'].value_counts()
         valid_cities = city_counts[city_counts >= 24].index.tolist()
         if not valid_cities:
             st.error(
-                "Không có thành phố nào có đủ dữ liệu (ít nhất 24 bản ghi). Vui lòng chạy `thuthap6.py` để thu thập thêm dữ liệu.")
+                "Không có thành phố nào có đủ dữ liệu (ít nhất 24 bản ghi). Vui lòng thu thập thêm dữ liệu.")
             st.stop()
 
         preferred_order = ['Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Cần Thơ', 'Vinh']
@@ -67,19 +62,16 @@ def load_and_preprocess_data():
 
         return df, valid_cities
     except FileNotFoundError:
-        st.error("Không tìm thấy file dữ liệu. Vui lòng chạy `thuthap6.py` trước.")
+        st.error("Không tìm thấy file dữ liệu. Vui lòng thu thập dữ liệu trước.")
         st.stop()
     except Exception as e:
         st.error(f"Lỗi xử lý dữ liệu: {str(e)}")
         st.stop()
 
-
 df, valid_cities = load_and_preprocess_data()
-
 
 def get_vietnam_time():
     return datetime.now(ZoneInfo("Asia/Bangkok"))
-
 
 def get_aqi_category(aqi):
     if aqi <= 50:
@@ -94,7 +86,6 @@ def get_aqi_category(aqi):
         return "Rất có hại", "bg-purple-500", "Cảnh báo sức khỏe: mọi người bị ảnh hưởng nghiêm trọng hơn.", '#a855f7'
     else:
         return "Nguy hiểm", "bg-maroon-500", "Cảnh báo sức khỏe khẩn cấp.", '#7f1d1d'
-
 
 @st.cache_data
 def preprocess_city_data(city, df, features, time_steps=24):
@@ -111,14 +102,12 @@ def preprocess_city_data(city, df, features, time_steps=24):
         sin_hour=np.sin(2 * np.pi * city_data['timestamp'].dt.hour / 24),
         cos_hour=np.cos(2 * np.pi * city_data['timestamp'].dt.hour / 24)
     )
-    for col in ['aqi', 'wind_speed', 'humidity']:
-        city_data[f'{col}_mean_3h'] = city_data[col].shift(1).rolling(window=3, min_periods=1).mean()
+    city_data['aqi_mean_3h'] = city_data['aqi'].shift(1).rolling(window=3, min_periods=1).mean()
     city_data = pd.get_dummies(city_data, columns=['city'], drop_first=True)
     for col in [f for f in features if f.startswith('city_')]:
         if col not in city_data.columns:
             city_data[col] = 0
     return city_data[features].tail(time_steps)
-
 
 def create_sequence_for_prediction(city, future_datetime, df, features, scaler, time_steps=24, forecast_hours=6):
     city_data = preprocess_city_data(city, df, features, time_steps)
@@ -131,7 +120,7 @@ def create_sequence_for_prediction(city, future_datetime, df, features, scaler, 
     current_sequence = recent_data_scaled.copy()
     for h in range(forecast_hours):
         sequence = np.expand_dims(current_sequence, axis=0)
-        pred = model.predict(sequence, verbose=0)[0]
+        pred = model.predict(sequence, verbose=0)[0][0]  # Chỉ lấy AQI
         predictions.append(pred)
 
         new_data = {
@@ -144,11 +133,7 @@ def create_sequence_for_prediction(city, future_datetime, df, features, scaler, 
             'sin_hour': np.sin(2 * np.pi * future_datetime.hour / 24),
             'cos_hour': np.cos(2 * np.pi * future_datetime.hour / 24),
             'aqi_mean_3h': df[df['city'] == city]['aqi'].tail(3).mean() if h == 0 else np.mean(
-                [p[0] for p in predictions[-3:]] if len(predictions) >= 3 else predictions[0][0]),
-            'wind_speed_mean_3h': df[df['city'] == city]['wind_speed'].tail(3).mean() if h == 0 else np.mean(
-                [p[1] for p in predictions[-3:]] if len(predictions) >= 3 else predictions[0][1]),
-            'humidity_mean_3h': df[df['city'] == city]['humidity'].tail(3).mean() if h == 0 else np.mean(
-                [p[2] for p in predictions[-3:]] if len(predictions) >= 3 else predictions[0][2])
+                predictions[-3:] if len(predictions) >= 3 else predictions[0])
         }
         for city_col in [col for col in features if col.startswith('city_')]:
             city_name = city_col.replace('city_', '')
@@ -160,13 +145,10 @@ def create_sequence_for_prediction(city, future_datetime, df, features, scaler, 
 
     return predictions
 
-
 if 'selected_city' not in st.session_state:
-    st.session_state.selected_city = 'Hà Nội' if 'Hà Nội' in valid_cities else valid_cities[
-        0] if valid_cities else 'Hà Nội'
+    st.session_state.selected_city = 'Hà Nội' if 'Hà Nội' in valid_cities else valid_cities[0] if valid_cities else 'Hà Nội'
 if 'selected_city_pred' not in st.session_state:
-    st.session_state.selected_city_pred = 'Hà Nội' if 'Hà Nội' in valid_cities else valid_cities[
-        0] if valid_cities else 'Hà Nội'
+    st.session_state.selected_city_pred = 'Hà Nội' if 'Hà Nội' in valid_cities else valid_cities[0] if valid_cities else 'Hà Nội'
 if 'selected_date' not in st.session_state:
     st.session_state.selected_date = get_vietnam_time().date()
 if 'future_date' not in st.session_state:
@@ -188,17 +170,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Tiêu đề chính
 st.markdown("""
     <div class="text-center py-6">
-        <h1 class="text-4xl font-bold text-white-800">Dự đoán Chỉ số Chất lượng Không khí (AQI)</h1>
-        <p class="text-lg text-white-600">Theo dõi và dự đoán chất lượng không khí tại các thành phố lớn ở Việt Nam</p>
+        <h1 class="text-4xl font-bold text-gray-800">Dự đoán Chỉ số Chất lượng Không khí (AQI)</h1>
+        <p class="text-lg text-gray-600">Theo dõi và dự đoán chất lượng không khí tại các thành phố lớn ở Việt Nam</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Sidebar
 with st.sidebar:
-    st.markdown("<h2 class='text-2xl font-semibold text-white-800'>Lịch sử AQI</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='text-2xl font-semibold text-gray-800'>Lịch sử AQI</h2>", unsafe_allow_html=True)
     selected_city = st.selectbox("Chọn thành phố để xem lịch sử:", valid_cities, index=valid_cities.index(
         st.session_state.selected_city) if st.session_state.selected_city in valid_cities else 0)
     st.session_state.selected_city = selected_city
@@ -218,15 +198,14 @@ with st.sidebar:
             <div class='aqi-gauge {bg_color}'>
                 AQI hiện tại: {latest_aqi:.1f} ({aqi_category})
             </div>
-            <p class='text-white-600 mt-2'>Thời gian: {latest_timestamp.strftime('%Y-%m-%d %H:%M:%S')}</p>
-            <p class='text-white-600'>{health_impact}</p>
+            <p class='text-gray-600 mt-2'>Thời gian: {latest_timestamp.strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p class='text-gray-600'>{health_impact}</p>
         """, unsafe_allow_html=True)
 
-        # Biểu đồ lịch sử theo ngày được chọn
         daily_data = city_data[city_data['timestamp'].dt.date == selected_date]
         if not daily_data.empty:
             st.markdown(
-                f"<h3 class='text-xl font-semibold text-white-700 mt-4'>Lịch sử AQI tại {selected_city} - Ngày {selected_date}</h3>",
+                f"<h3 class='text-xl font-semibold text-gray-700 mt-4'>Lịch sử AQI tại {selected_city} - Ngày {selected_date}</h3>",
                 unsafe_allow_html=True)
             try:
                 fig = px.line(daily_data, x='timestamp', y=['aqi'],
@@ -248,13 +227,13 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"Lỗi vẽ biểu đồ lịch sử: {str(e)}")
         else:
-            st.markdown(f"<p class='text-white-600'>Không có dữ liệu cho {selected_city} vào ngày {selected_date}.</p>",
+            st.markdown(f"<p class='text-gray-600'>Không có dữ liệu cho {selected_city} vào ngày {selected_date}.</p>",
                         unsafe_allow_html=True)
 
         last_24h_data = city_data[city_data['timestamp'] >= (city_data['timestamp'].max() - timedelta(hours=24))]
         if not last_24h_data.empty:
             st.markdown(
-                f"<h3 class='text-xl font-semibold text-white-700 mt-4'>AQI 24 giờ gần nhất tại {selected_city}</h3>",
+                f"<h3 class='text-xl font-semibold text-gray-700 mt-4'>AQI 24 giờ gần nhất tại {selected_city}</h3>",
                 unsafe_allow_html=True)
             try:
                 fig_24h = px.line(last_24h_data, x='timestamp', y=['aqi'],
@@ -276,17 +255,17 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"Lỗi vẽ biểu đồ 24h: {str(e)}")
         else:
-            st.markdown("<p class='text-white-600'>Chưa có đủ dữ liệu 24 giờ cho thành phố này.</p>",
+            st.markdown("<p class='text-gray-600'>Chưa có đủ dữ liệu 24 giờ cho thành phố này.</p>",
                         unsafe_allow_html=True)
     else:
-        st.markdown("<p class='text-white-600'>Chưa có dữ liệu lịch sử cho thành phố này.</p>", unsafe_allow_html=True)
+        st.markdown("<p class='text-gray-600'>Chưa có dữ liệu lịch sử cho thành phố này.</p>", unsafe_allow_html=True)
 
 st.markdown("<div class='container mx-auto px-4'>", unsafe_allow_html=True)
 st.markdown(
-    f"<p class='text-lg text-white-600'>Thời gian hiện tại: {get_vietnam_time().strftime('%Y-%m-%d %H:%M:%S')}</p>",
+    f"<p class='text-lg text-gray-600'>Thời gian hiện tại: {get_vietnam_time().strftime('%Y-%m-%d %H:%M:%S')}</p>",
     unsafe_allow_html=True)
 
-st.markdown("<h2 class='text-2xl font-semibold text-white-800 mt-6'>Dự đoán AQI</h2>", unsafe_allow_html=True)
+st.markdown("<h2 class='text-2xl font-semibold text-gray-800 mt-6'>Dự đoán AQI</h2>", unsafe_allow_html=True)
 col1, col2 = st.columns([1, 2])
 
 with col1:
@@ -312,29 +291,26 @@ with col2:
                                                          forecast_hours=st.session_state.forecast_hours)
             if predictions is not None:
                 pred_data = []
-                for h, pred in enumerate(predictions):
-                    aqi, wind_speed, humidity = pred
+                for h, aqi in enumerate(predictions):
                     pred_time = future_datetime + timedelta(hours=h)
                     aqi_category, bg_color, health_impact, plotly_color = get_aqi_category(aqi)
                     pred_data.append({
                         'Thời gian': pred_time,
                         'AQI': aqi,
-                        'Tốc độ gió (km/h)': wind_speed,
-                        'Độ ẩm (%)': humidity,
                         'Mức độ AQI': aqi_category,
                         'Ảnh hưởng sức khỏe': health_impact
                     })
 
                 pred_df = pd.DataFrame(pred_data)
-                st.markdown("<h3 class='text-xl font-semibold text-white-800'>Kết quả dự đoán</h3>",
+                st.markdown("<h3 class='text-xl font-semibold text-gray-800'>Kết quả dự đoán</h3>",
                             unsafe_allow_html=True)
                 st.dataframe(
-                    pred_df.style.format({'AQI': '{:.1f}', 'Tốc độ gió (km/h)': '{:.1f}', 'Độ ẩm (%)': '{:.1f}'}))
+                    pred_df.style.format({'AQI': '{:.1f}'}))
 
                 latest_aqi = pred_df['AQI'].iloc[-1]
                 _, _, _, plotly_color = get_aqi_category(latest_aqi)
                 fig = px.line(pred_df, x='Thời gian', y=['AQI'],
-                              title=f"Dự đoán tại {selected_city_pred}",
+                              title=f"Dự đoán AQI tại {selected_city_pred}",
                               labels={'Thời gian': 'Thời gian', 'value': 'Giá trị', 'variable': 'Biến'},
                               color_discrete_sequence=[plotly_color])
                 fig.update_layout(
@@ -363,6 +339,6 @@ with col_retrain:
     if st.button("Huấn luyện lại mô hình"):
         with open(RETRAIN_FLAG, 'w', encoding='utf-8') as f:
             f.write("retrain")
-        st.info("Đã yêu cầu huấn luyện lại mô hình. Vui lòng chạy lại file `huanluyen6.py`.")
+        st.info("Đã yêu cầu huấn luyện lại mô hình. Vui lòng chạy lại file `huanluyen6_aqi_only.py`.")
 
 st.markdown("</div>", unsafe_allow_html=True)
