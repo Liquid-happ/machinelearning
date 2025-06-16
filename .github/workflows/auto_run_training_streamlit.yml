@@ -30,27 +30,25 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # Không cần playwright nếu không sử dụng, bỏ nếu không cần
 
       # Bước 4: Chạy script huấn luyện (huanluyen6.py)
       - name: Run training script
         run: |
           python huanluyen6.py
-        timeout-minutes: 15  # Tăng thời gian timeout nếu huấn luyện lâu
+        timeout-minutes: 15
 
       # Bước 5: Chạy script Streamlit (streamlit6.py)
       - name: Run Streamlit script
         run: |
           streamlit run streamlit6.py --server.port 8501 &
-          sleep 10  # Đợi ứng dụng khởi động (có thể điều chỉnh thời gian)
+          sleep 10
         timeout-minutes: 5
 
-      # Bước 6: Kiểm tra và commit nếu có thay đổi (mô hình hoặc dữ liệu)
+      # Bước 6: Kiểm tra và commit nếu có thay đổi
       - name: Commit and push changes
         run: |
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-
           if git status --porcelain | grep -E "models/|all_cities_aqi_data.csv"; then
             echo "📦 File mô hình hoặc dữ liệu thay đổi, tiến hành commit..."
             git add models/* all_cities_aqi_data.csv
@@ -58,3 +56,4 @@ jobs:
             git push
           else
             echo "✅ Không có thay đổi nào trong mô hình hoặc dữ liệu."
+          fi
