@@ -2,7 +2,7 @@ name: Auto Update CSV
 
 on:
   schedule:
-    - cron: '0 */1 * * *' # Chạy mỗi giờ vào phút 0
+    - cron: '0 */1 * * *' # Chạy mỗi giờ vào phút 0 (theo UTC, tương đương 7:00, 8:00, 9:00... +07)
   workflow_dispatch: # Cho phép chạy thủ công
 
 jobs:
@@ -32,9 +32,9 @@ jobs:
       - name: Run script
         run: |
           python thuthap6.py || { echo "Script failed"; exit 1; }
-        timeout-minutes: 10
+        timeout-minutes: 10  # Giới hạn thời gian chạy tối đa 10 phút
 
-      # Bước 5: Commit và push changes
+      # Bước 5: Commit và push file CSV
       - name: Commit and push changes
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
