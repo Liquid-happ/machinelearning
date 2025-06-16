@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: '3.9'  # Cập nhật từ 3.8 lên 3.9
 
       # Bước 3: Cài đặt dependencies
       - name: Install dependencies
