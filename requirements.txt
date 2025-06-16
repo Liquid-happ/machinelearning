@@ -5,3 +5,4 @@ tensorflow>=2.10.0
 joblib>=1.1.0
 streamlit>=1.32
 matplotlib
+playwright>=1.30.0
