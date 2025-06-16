@@ -172,13 +172,13 @@ st.markdown("""
 
 st.markdown("""
     <div class="text-center py-6">
-        <h1 class="text-4xl font-bold text-gray-800">Dự đoán Chỉ số Chất lượng Không khí (AQI)</h1>
-        <p class="text-lg text-gray-600">Theo dõi và dự đoán chất lượng không khí tại các thành phố lớn ở Việt Nam</p>
+        <h1 class="text-4xl font-bold text-white-800">Dự đoán Chỉ số Chất lượng Không khí (AQI)</h1>
+        <p class="text-lg text-white-600">Theo dõi và dự đoán chất lượng không khí tại các thành phố lớn ở Việt Nam</p>
     </div>
 """, unsafe_allow_html=True)
 
 with st.sidebar:
-    st.markdown("<h2 class='text-2xl font-semibold text-gray-800'>Lịch sử AQI</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='text-2xl font-semibold text-white-800'>Lịch sử AQI</h2>", unsafe_allow_html=True)
     selected_city = st.selectbox("Chọn thành phố để xem lịch sử:", valid_cities, index=valid_cities.index(
         st.session_state.selected_city) if st.session_state.selected_city in valid_cities else 0)
     st.session_state.selected_city = selected_city
@@ -198,14 +198,14 @@ with st.sidebar:
             <div class='aqi-gauge {bg_color}'>
                 AQI hiện tại: {latest_aqi:.1f} ({aqi_category})
             </div>
-            <p class='text-gray-600 mt-2'>Thời gian: {latest_timestamp.strftime('%Y-%m-%d %H:%M:%S')}</p>
-            <p class='text-gray-600'>{health_impact}</p>
+            <p class='text-white-600 mt-2'>Thời gian: {latest_timestamp.strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p class='text-white-600'>{health_impact}</p>
         """, unsafe_allow_html=True)
 
         daily_data = city_data[city_data['timestamp'].dt.date == selected_date]
         if not daily_data.empty:
             st.markdown(
-                f"<h3 class='text-xl font-semibold text-gray-700 mt-4'>Lịch sử AQI tại {selected_city} - Ngày {selected_date}</h3>",
+                f"<h3 class='text-xl font-semibold text-white-700 mt-4'>Lịch sử AQI tại {selected_city} - Ngày {selected_date}</h3>",
                 unsafe_allow_html=True)
             try:
                 fig = px.line(daily_data, x='timestamp', y=['aqi'],
@@ -227,13 +227,13 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"Lỗi vẽ biểu đồ lịch sử: {str(e)}")
         else:
-            st.markdown(f"<p class='text-gray-600'>Không có dữ liệu cho {selected_city} vào ngày {selected_date}.</p>",
+            st.markdown(f"<p class='text-white-600'>Không có dữ liệu cho {selected_city} vào ngày {selected_date}.</p>",
                         unsafe_allow_html=True)
 
         last_24h_data = city_data[city_data['timestamp'] >= (city_data['timestamp'].max() - timedelta(hours=24))]
         if not last_24h_data.empty:
             st.markdown(
-                f"<h3 class='text-xl font-semibold text-gray-700 mt-4'>AQI 24 giờ gần nhất tại {selected_city}</h3>",
+                f"<h3 class='text-xl font-semibold text-white-700 mt-4'>AQI 24 giờ gần nhất tại {selected_city}</h3>",
                 unsafe_allow_html=True)
             try:
                 fig_24h = px.line(last_24h_data, x='timestamp', y=['aqi'],
@@ -255,17 +255,17 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"Lỗi vẽ biểu đồ 24h: {str(e)}")
         else:
-            st.markdown("<p class='text-gray-600'>Chưa có đủ dữ liệu 24 giờ cho thành phố này.</p>",
+            st.markdown("<p class='text-white-600'>Chưa có đủ dữ liệu 24 giờ cho thành phố này.</p>",
                         unsafe_allow_html=True)
     else:
-        st.markdown("<p class='text-gray-600'>Chưa có dữ liệu lịch sử cho thành phố này.</p>", unsafe_allow_html=True)
+        st.markdown("<p class='text-white-600'>Chưa có dữ liệu lịch sử cho thành phố này.</p>", unsafe_allow_html=True)
 
 st.markdown("<div class='container mx-auto px-4'>", unsafe_allow_html=True)
 st.markdown(
-    f"<p class='text-lg text-gray-600'>Thời gian hiện tại: {get_vietnam_time().strftime('%Y-%m-%d %H:%M:%S')}</p>",
+    f"<p class='text-lg text-white-600'>Thời gian hiện tại: {get_vietnam_time().strftime('%Y-%m-%d %H:%M:%S')}</p>",
     unsafe_allow_html=True)
 
-st.markdown("<h2 class='text-2xl font-semibold text-gray-800 mt-6'>Dự đoán AQI</h2>", unsafe_allow_html=True)
+st.markdown("<h2 class='text-2xl font-semibold text-white-800 mt-6'>Dự đoán AQI</h2>", unsafe_allow_html=True)
 col1, col2 = st.columns([1, 2])
 
 with col1:
@@ -302,7 +302,7 @@ with col2:
                     })
 
                 pred_df = pd.DataFrame(pred_data)
-                st.markdown("<h3 class='text-xl font-semibold text-gray-800'>Kết quả dự đoán</h3>",
+                st.markdown("<h3 class='text-xl font-semibold text-white-800'>Kết quả dự đoán</h3>",
                             unsafe_allow_html=True)
                 st.dataframe(
                     pred_df.style.format({'AQI': '{:.1f}'}))
