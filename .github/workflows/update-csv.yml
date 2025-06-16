@@ -2,18 +2,22 @@ name: Auto Update CSV
 
 on:
   schedule:
-    - cron: '0 */1 * * *' # Chạy mỗi giờ (0 phút mỗi giờ)
-  workflow_dispatch: # Cho phép chạy thủ công
+    - cron: '0 * * * *'  # Chạy mỗi giờ đúng phút 00 (UTC)
+  workflow_dispatch:       # Cho phép chạy thủ công nếu cần
 
 jobs:
   update-csv:
     runs-on: ubuntu-latest
+
     permissions:
-      contents: write # Quyền ghi vào repository
+      contents: write  # Cho phép commit & push thay đổi
+
     steps:
       # Bước 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Bước 2: Thiết lập Python
       - name: Set up Python
@@ -29,18 +33,22 @@ jobs:
           playwright install chromium
 
       # Bước 4: Chạy script thu thập dữ liệu
-      - name: Run script
+      - name: Run data collection script
         run: |
-          python thuthap6.py || { echo "Script failed"; exit 1; }
-        timeout-minutes: 10  # Giới hạn thời gian chạy tối đa 10 phút
+          python thuthap6.py
+        timeout-minutes: 10
 
-      # Bước 5: Commit và push file CSV
-      - name: Commit and push changes
+      # Bước 5: Kiểm tra và commit nếu có thay đổi
+      - name: Commit and push CSV changes
         run: |
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add all_cities_aqi_data.csv
-          git commit -m "Auto update all_cities_aqi_data.csv" || exit 0
-          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/Liquid-happ/machinelearning.git
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          if git status --porcelain | grep all_cities_aqi_data.csv; then
+            echo "📦 File CSV thay đổi, tiến hành commit..."
+            git add all_cities_aqi_data.csv
+            git commit -m "🔄 Auto update all_cities_aqi_data.csv"
+            git push
+          else
+            echo "✅ Không có thay đổi nào trong file CSV."
+          fi
