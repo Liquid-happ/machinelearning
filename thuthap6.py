@@ -3,7 +3,7 @@ import pandas as pd
 import time
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
 import re
@@ -23,8 +23,7 @@ CSV_FILE = os.path.join(os.getcwd(), 'all_cities_aqi_data.csv')
 # Define cities data
 CITIES = [
     {"name": "hanoi", "display_name": "Hà Nội", "url": "https://www.iqair.com/vi/vietnam/hanoi/hanoi"},
-    {"name": "ho-chi-minh-city", "display_name": "Hồ Chí Minh",
-     "url": "https://www.iqair.com/vi/vietnam/ho-chi-minh-city/ho-chi-minh-city"},
+    {"name": "ho-chi-minh-city", "display_name": "Hồ Chí Minh", "url": "https://www.iqair.com/vi/vietnam/ho-chi-minh-city/ho-chi-minh-city"},
     {"name": "da-nang", "display_name": "Đà Nẵng", "url": "https://www.iqair.com/vi/vietnam/da-nang/da-nang"},
     {"name": "can-tho", "display_name": "Cần Thơ", "url": "https://www.iqair.com/vi/vietnam/thanh-pho-can-tho/can-tho"},
     {"name": "vinh", "display_name": "Vinh", "url": "https://www.iqair.com/vi/vietnam/tinh-nghe-an/vinh"}
@@ -72,7 +71,7 @@ def crawl_city_data(page, city: Dict, retries: int = 1) -> Optional[Dict]:
             print(f"\nAccessing {city['display_name']} ({city['url']}) at {get_vietnam_time().strftime('%Y-%m-%d %H:%M:%S')}...")
 
             page.goto(city['url'])
-            page.wait_for_selector(".aqi-value__estimated", timeout=10000)  # Giảm timeout xuống 10 giây
+            page.wait_for_selector(".aqi-value__estimated", timeout=10000)
 
             aqi_raw = page.query_selector(".aqi-value__estimated").text_content()
             wind_speed_raw = page.query_selector(".air-quality-forecast-container-wind__label").text_content()
@@ -106,7 +105,7 @@ def crawl_city_data(page, city: Dict, retries: int = 1) -> Optional[Dict]:
             logging.error(f"Error extracting data for {city['display_name']} - Attempt {attempt + 1}: {str(e)}")
             print(f"Error extracting data for {city['display_name']} - Attempt {attempt + 1}: {str(e)}")
             if attempt < retries - 1:
-                time.sleep(2)  # Giảm thời gian chờ giữa các lần thử xuống 2 giây
+                time.sleep(2)
             else:
                 return None
 
@@ -165,7 +164,7 @@ def crawl_all_cities():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.set_viewport_size({"width": 1280, "height": 720})
-        page.set_default_timeout(10000)  # Giảm timeout xuống 10 giây
+        page.set_default_timeout(10000)
 
         for city in CITIES:
             print(f"\n{'=' * 50}")
