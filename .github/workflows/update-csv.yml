@@ -11,11 +11,9 @@ jobs:
     permissions:
       contents: write # Quyền ghi vào repository
     steps:
-      # Bước 1: Checkout repository với token
+      # Bước 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Bước 2: Thiết lập Python
       - name: Set up Python
@@ -28,6 +26,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pandas playwright  # Cài đặt bổ sung nếu requirements.txt thiếu
           playwright install chromium
 
       # Bước 4: Chạy script thu thập dữ liệu
