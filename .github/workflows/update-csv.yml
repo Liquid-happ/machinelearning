@@ -1,4 +1,5 @@
 name: Auto Update CSV
+
 on:
   schedule:
     - cron: '0 * * * *' # Chạy mỗi giờ (0 phút mỗi giờ)
@@ -29,13 +30,16 @@ jobs:
 
       # Bước 4: Chạy script thu thập dữ liệu
       - name: Run script
-        run: python thuthap6.py
+        run: |
+          python thuthap6.py || { echo "Script failed"; exit 1; }
 
       # Bước 5: Commit và push file CSV
       - name: Commit and push changes
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add all_cities_aqi_data.csv
           git commit -m "Auto update all_cities_aqi_data.csv" || exit 0
-          git push
+          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/Liquid-happ/machinelearning.git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
